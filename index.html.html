@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hydrological Data Request — CHWRR (WECS)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0F3D5C; --teal:#1B7F8C; --line:#dadce0; --ink:#202124; --muted:#5f6368;
+    --bg:#e9eef1; --card:#ffffff; --focus:#1B7F8C; --err:#d93025; --ok:#137333;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Roboto",Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;padding:14px 0 64px}
+  .wrap{max-width:700px;margin:0 auto;padding:0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:22px 24px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .header{padding:0;overflow:hidden;border-top:8px solid var(--navy)}
+  .header .inner{padding:24px}
+  .eyebrow{color:var(--teal);font-weight:700;letter-spacing:.04em;font-size:12px;text-transform:uppercase;margin:0}
+  .header h1{font-size:24px;font-weight:500;margin:6px 0 2px;color:var(--navy);line-height:1.25}
+  .addr{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .decl{font-size:13.5px;color:#3c4043;border-top:1px solid var(--line);padding-top:14px;margin:0}
+  .req-note{color:var(--err);font-size:12.5px;margin:14px 0 0}
+  label.q{display:block;font-weight:500;margin-bottom:8px}
+  .q .star{color:var(--err);margin-left:2px}
+  .hint{color:var(--muted);font-size:12.5px;margin:-2px 0 10px}
+  input[type=text],input[type=tel],input[type=email],input[type=number],textarea,select{
+    width:100%;border:none;border-bottom:1px solid var(--line);background:transparent;
+    font:inherit;color:var(--ink);padding:8px 2px;outline:none;transition:border-color .15s}
+  input:focus,textarea:focus,select:focus{border-bottom:2px solid var(--focus)}
+  textarea{min-height:64px;resize:vertical}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
+  .grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px 16px}
+  @media(max-width:560px){.grid,.grid-4{grid-template-columns:1fr}}
+  .opt{display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer}
+  .opt input{accent-color:var(--navy);width:18px;height:18px}
+  .section-title{font-size:16px;font-weight:700;color:var(--navy);margin:0 0 4px}
+  .section-sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .station{border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px;background:#fafbfc}
+  .station h4{margin:0 0 12px;font-size:14px;color:var(--teal);font-weight:700;
+    display:flex;justify-content:space-between;align-items:center}
+  .params{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:12px}
+  @media(max-width:560px){.params{grid-template-columns:1fr}}
+  .param{display:flex;align-items:center;gap:8px;font-size:13.5px}
+  .param input[type=checkbox]{accent-color:var(--navy);width:17px;height:17px}
+  .param .rate{color:var(--muted);font-size:12px;margin-left:auto;white-space:nowrap}
+  .meas{width:74px!important;display:none;margin-left:6px}
+  .yrs{background:#eef3f5;color:var(--navy);font-weight:500}
+  .btn{font:inherit;font-weight:500;cursor:pointer;border-radius:6px;padding:10px 18px;border:1px solid transparent}
+  .btn-ghost{background:#fff;border-color:var(--line);color:var(--navy)}
+  .btn-primary{background:var(--navy);color:#fff}
+  .btn-primary:hover{background:#0b3049}
+  .btn-primary:disabled{opacity:.6;cursor:default}
+  .del{background:none;border:none;color:var(--err);cursor:pointer;font-size:12.5px;font-weight:500}
+  .summary{display:flex;flex-direction:column;gap:8px}
+  .srow{display:flex;justify-content:space-between;font-size:14px}
+  .srow.total{border-top:1px solid var(--line);padding-top:10px;font-weight:700;color:var(--navy);font-size:16px}
+  .srow .muted{color:var(--muted)}
+  .actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+  .foot a{color:var(--teal)}
+  .note-cost{color:var(--muted);font-size:12px;margin:6px 0 0}
+  .error{color:var(--err);font-size:13px;margin-top:10px;display:none}
+  .error.show{display:block}
+  .success{text-align:center;padding:14px 4px}
+  .success h2{color:var(--ok);font-size:20px;margin:0 0 8px}
+  .success .ref{font-family:monospace;background:#f1f5f7;border-radius:6px;padding:4px 10px;display:inline-block;margin:6px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <form id="reqForm">
+    <div class="card header">
+      <div class="inner">
+        <p class="eyebrow">Water and Energy Commission Secretariat</p>
+        <h1>Hydrological Data Request Form</h1>
+        <p class="addr">Centre of Hydrology &amp; Water Resources Research · Babarmahal, Kathmandu, Nepal</p>
+        <p class="decl">I/We hereby request the following hydrological data and declare that the data obtained will be used only for the purpose of the analysis stated below, and will not be reproduced, distributed, or used for any other purpose.</p>
+        <p class="req-note">* Required</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Applicant details</p>
+      <p class="section-sub">We use your email and mobile to send the data and any payment instructions.</p>
+      <div class="grid">
+        <div><label class="q">Organization</label><input type="text" name="Organization" placeholder="Institution / company (optional)"></div>
+        <div><label class="q">Full name<span class="star">*</span></label><input type="text" name="Name" required></div>
+        <div><label class="q">Email<span class="star">*</span></label><input type="email" name="email" required></div>
+        <div><label class="q">Mobile no.<span class="star">*</span></label><input type="tel" name="Mobile" required></div>
+      </div>
+      <div style="margin-top:16px"><label class="q">Address</label><input type="text" name="Address"></div>
+      <div style="margin-top:16px"><label class="q">Proposed analysis / purpose<span class="star">*</span></label>
+        <textarea name="Purpose" required placeholder="Briefly describe how the data will be used"></textarea></div>
+    </div>
+
+    <div class="card">
+      <label class="q">Applicant category<span class="star">*</span></label>
+      <p class="hint">Determines the applicable discount on data charges.</p>
+      <label class="opt"><input type="radio" name="Category" value="General (no discount)" data-disc="0" checked required><span>General applicant — full rate</span></label>
+      <label class="opt"><input type="radio" name="Category" value="Student in Nepal (75% off)" data-disc="75"><span>Student in Nepal — 75% off</span></label>
+      <label class="opt"><input type="radio" name="Category" value="Student studying abroad (50% off)" data-disc="50"><span>Student studying abroad — 50% off</span></label>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Data requested</p>
+      <p class="section-sub">Add one block per station. Tick the parameters and enter the record period.</p>
+      <div id="stations"></div>
+      <button type="button" class="btn btn-ghost" id="addStation">+ Add another station</button>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Estimated cost</p>
+      <p class="section-sub">Auto-calculated from your selections. The office confirms the final amount.</p>
+      <div class="summary">
+        <div class="srow"><span class="muted">Subtotal (before discount)</span><span id="subTotal">NRs. 0</span></div>
+        <div class="srow"><span class="muted">Discount <span id="discLabel">(0%)</span></span><span id="discAmt">– NRs. 0</span></div>
+        <div class="srow total"><span>Grand total</span><span id="grandTotal">NRs. 0</span></div>
+      </div>
+      <p class="note-cost">Rates (NRs.): Discharge 90 · Gauge Ht. 60 · Sediment 60 · Avg / Max / Min / Instantaneous Q 25 — each per year · Discharge measured (raw data) 35 per measurement.</p>
+    </div>
+
+    <div class="card">
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit request</button>
+        <span class="foot" style="margin:0">Questions? Call <span id="phoneTxt"></span> · <a id="emailLink" href="#"></a></span>
+      </div>
+      <p class="error" id="formError"></p>
+    </div>
+  </form>
+
+  <div class="card" id="successCard" style="display:none">
+    <div class="success">
+      <h2>Request submitted</h2>
+      <p>Thank you. Your reference number is:</p>
+      <p class="ref" id="refOut"></p>
+      <p>We'll get back to you at <strong id="emailOut"></strong>.</p>
+      <button type="button" class="btn btn-ghost" id="againBtn" style="margin-top:8px">Submit another request</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   1) PASTE YOUR FORMSPREE ENDPOINT BELOW  (the only thing you must edit)
+      Create a form at https://formspree.io  →  copy its endpoint, which
+      looks like:  https://formspree.io/f/abcdwxyz
+   ===================================================================== */
+var FORMSPREE_ENDPOINT = "https://formspree.io/f/mgawlpan";
+
+/* Optional: shown in the footer */
+var OFFICE_EMAIL = "avishekpokhrel5@gmail.com";
+var OFFICE_PHONE = "01-4219052 / 01-4215396";
+/* ===================================================================== */
+
+(function () {
+  "use strict";
+  document.getElementById('phoneTxt').textContent = OFFICE_PHONE;
+  var el = document.getElementById('emailLink');
+  el.textContent = OFFICE_EMAIL; el.href = 'mailto:' + OFFICE_EMAIL;
+
+  var RATES = {
+    "Discharge": { r: 90, per: 'yr' },
+    "Gauge Ht.": { r: 60, per: 'yr' },
+    "Sediment": { r: 60, per: 'yr' },
+    "Avg Q": { r: 25, per: 'yr' },
+    "Max Q": { r: 25, per: 'yr' },
+    "Min Q": { r: 25, per: 'yr' },
+    "Instantaneous Q": { r: 25, per: 'yr' },
+    "Discharge Measured (Raw Data)": { r: 35, per: 'meas' }
+  };
+
+  var stationsEl = document.getElementById('stations');
+  var n = 0;
+
+  function stationHTML(i) {
+    var params = Object.keys(RATES).map(function (name) {
+      var c = RATES[name];
+      var rateTxt = c.per === 'yr' ? c.r + '/yr' : c.r + '/meas.';
+      var measInput = c.per === 'meas' ? '<input type="number" min="0" class="meas" data-meas placeholder="#">' : '';
+      return '<label class="param"><input type="checkbox" data-param="' + name + '" data-rate="' + c.r + '" data-per="' + c.per + '">' +
+        '<span>' + name + '</span>' + measInput + '<span class="rate">' + rateTxt + '</span></label>';
+    }).join('');
+    return '<div class="station"><h4>Station ' + i + (i > 1 ? ' <button type="button" class="del" data-del>Remove</button>' : '') + '</h4>' +
+      '<div class="grid-4">' +
+        '<div><label class="q">Station no.</label><input type="text" data-field="station"></div>' +
+        '<div><label class="q">From (year)</label><input type="number" data-field="from" placeholder="e.g. 2005"></div>' +
+        '<div><label class="q">To (year)</label><input type="number" data-field="to" placeholder="e.g. 2020"></div>' +
+        '<div><label class="q">No. of years</label><input type="text" data-field="years" class="yrs" readonly placeholder="auto"></div>' +
+      '</div><div class="params">' + params + '</div></div>';
+  }
+  function addStation() {
+    n++; var d = document.createElement('div'); d.innerHTML = stationHTML(n);
+    stationsEl.appendChild(d.firstElementChild); recalc();
+  }
+  document.getElementById('addStation').addEventListener('click', addStation);
+
+  stationsEl.addEventListener('input', function (e) {
+    if (e.target.matches('[data-param]')) {
+      var m = e.target.parentElement.querySelector('[data-meas]');
+      if (m) m.style.display = e.target.checked ? 'inline-block' : 'none';
+    }
+    if (e.target.matches('[data-field=from],[data-field=to]')) {
+      var st = e.target.closest('.station'); var y = yearsOf(st);
+      st.querySelector('[data-field=years]').value = y ? (y + (y === 1 ? ' year' : ' years')) : '';
+    }
+    recalc();
+  });
+  stationsEl.addEventListener('click', function (e) {
+    if (e.target.matches('[data-del]')) { e.target.closest('.station').remove(); recalc(); }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[name="Category"]'), function (r) { r.addEventListener('change', recalc); });
+
+  function yearsOf(st) {
+    var f = parseInt(st.querySelector('[data-field=from]').value, 10);
+    var t = parseInt(st.querySelector('[data-field=to]').value, 10);
+    return (!isNaN(f) && !isNaN(t) && t >= f) ? (t - f + 1) : 0;
+  }
+  function currentDiscount() { var s = document.querySelector('[name="Category"]:checked'); return s ? parseInt(s.dataset.disc, 10) : 0; }
+  function fmt(x) { return 'NRs. ' + Number(x).toLocaleString('en-IN'); }
+
+  function recalc() {
+    var subtotal = 0, lines = [], stations = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.station'), function (st) {
+      var stNo = st.querySelector('[data-field=station]').value || '';
+      var from = st.querySelector('[data-field=from]').value || '';
+      var to = st.querySelector('[data-field=to]').value || '';
+      var yr = yearsOf(st), picked = [];
+      Array.prototype.forEach.call(st.querySelectorAll('[data-param]:checked'), function (cb) {
+        var name = cb.dataset.param, rate = +cb.dataset.rate, per = cb.dataset.per, qty = 0, cost = 0;
+        if (per === 'yr') { qty = yr; cost = yr * rate; }
+        else { var m = cb.parentElement.querySelector('[data-meas]'); qty = parseInt(m && m.value, 10) || 0; cost = qty * rate; }
+        subtotal += cost;
+        picked.push(name + ' (' + (per === 'yr' ? qty + 'yr' : qty + 'meas') + ' x ' + rate + ' = ' + cost + ')');
+      });
+      if (picked.length) { lines.push('Station ' + (stNo || '-') + ' ' + (from || '?') + '-' + (to || '?') + ' (' + yr + 'yr): ' + picked.join('; ')); }
+      if (stNo || from || to || picked.length) stations.push({ station: stNo, from: from, to: to, years: yr, picked: picked });
+    });
+    var disc = currentDiscount(), discAmt = Math.round(subtotal * disc / 100), grand = subtotal - discAmt;
+    document.getElementById('subTotal').textContent = fmt(subtotal);
+    document.getElementById('discLabel').textContent = '(' + disc + '%)';
+    document.getElementById('discAmt').textContent = '– ' + fmt(discAmt);
+    document.getElementById('grandTotal').textContent = fmt(grand);
+    return { lines: lines, stations: stations, subtotal: subtotal, disc: disc, discAmt: discAmt, grand: grand };
+  }
+
+  function val(name) { var e = document.querySelector('[name="' + name + '"]'); return e ? e.value.trim() : ''; }
+  function genRef() { return 'HDR-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(Math.random() * 1296).toString(36).toUpperCase(); }
+  function showError(m) { var e = document.getElementById('formError'); e.textContent = m; e.classList.add('show'); }
+
+  document.getElementById('reqForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    document.getElementById('formError').classList.remove('show');
+    var g = recalc();
+    if (!val('Name') || !val('email') || !val('Mobile') || !val('Purpose')) { showError('Please fill in your name, email, mobile, and purpose.'); return; }
+    var anyParam = g.lines.length > 0;
+    if (!anyParam) { showError('Select at least one parameter with a valid period or measurement count.'); return; }
+    if (FORMSPREE_ENDPOINT.indexOf('YOUR_FORM_ID') !== -1) { showError('Set FORMSPREE_ENDPOINT at the top of this file to your Formspree form URL.'); return; }
+
+    var ref = genRef();
+    var payload = {
+      Reference: ref,
+      Name: val('Name'),
+      email: val('email'),
+      Mobile: val('Mobile'),
+      Organization: val('Organization'),
+      Address: val('Address'),
+      Purpose: val('Purpose'),
+      "Applicant category": (document.querySelector('[name="Category"]:checked') || {}).value || '',
+      "Requested data": g.lines.join('\n'),
+      "Estimated subtotal (NRs.)": g.subtotal,
+      "Discount": g.disc + '%',
+      "Estimated grand total (NRs.)": g.grand,
+      _subject: 'New data request — ' + ref
+    };
+
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+
+    fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      btn.disabled = false; btn.textContent = 'Submit request';
+      if (res.ok) {
+        document.getElementById('refOut').textContent = ref;
+        document.getElementById('emailOut').textContent = payload.email;
+        document.getElementById('reqForm').style.display = 'none';
+        document.getElementById('successCard').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        res.json().then(function (d) {
+          showError((d.errors ? d.errors.map(function (x) { return x.message; }).join(', ') : 'Submission failed. Please try again.'));
+        }).catch(function () { showError('Submission failed. Please try again.'); });
+      }
+    }).catch(function (err) {
+      btn.disabled = false; btn.textContent = 'Submit request';
+      showError('Network error: ' + err.message);
+    });
+  });
+
+  document.getElementById('againBtn').addEventListener('click', function () {
+    document.getElementById('reqForm').reset();
+    stationsEl.innerHTML = ''; n = 0; addStation();
+    document.getElementById('successCard').style.display = 'none';
+    document.getElementById('reqForm').style.display = 'block';
+  });
+
+  addStation();
+})();
+</script>
+</body>
+</html>
