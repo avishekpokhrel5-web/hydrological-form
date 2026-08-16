@@ -138,11 +138,16 @@
       <p>Thank you. Your reference number is:</p>
       <p class="ref" id="refOut"></p>
       <p>We'll get back to you at <strong id="emailOut"></strong>.</p>
-      <button type="button" class="btn btn-ghost" id="againBtn" style="margin-top:8px">Submit another request</button>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+        <button type="button" class="btn btn-primary" id="downloadBtn">Download my request as PDF</button>
+        <button type="button" class="btn btn-ghost" id="againBtn">Submit another request</button>
+      </div>
     </div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 /* =====================================================================
    1) PASTE YOUR FORMSPREE ENDPOINT BELOW  (the only thing you must edit)
@@ -175,6 +180,7 @@ var OFFICE_PHONE = "01-4219052 / 01-4215396";
 
   var stationsEl = document.getElementById('stations');
   var n = 0;
+  var lastSubmission = null;
 
   function stationHTML(i) {
     var params = Object.keys(RATES).map(function (name) {
@@ -228,16 +234,17 @@ var OFFICE_PHONE = "01-4219052 / 01-4215396";
       var stNo = st.querySelector('[data-field=station]').value || '';
       var from = st.querySelector('[data-field=from]').value || '';
       var to = st.querySelector('[data-field=to]').value || '';
-      var yr = yearsOf(st), picked = [];
+      var yr = yearsOf(st), picked = [], paramObjs = [];
       Array.prototype.forEach.call(st.querySelectorAll('[data-param]:checked'), function (cb) {
         var name = cb.dataset.param, rate = +cb.dataset.rate, per = cb.dataset.per, qty = 0, cost = 0;
         if (per === 'yr') { qty = yr; cost = yr * rate; }
         else { var m = cb.parentElement.querySelector('[data-meas]'); qty = parseInt(m && m.value, 10) || 0; cost = qty * rate; }
         subtotal += cost;
         picked.push(name + ' (' + (per === 'yr' ? qty + 'yr' : qty + 'meas') + ' x ' + rate + ' = ' + cost + ')');
+        paramObjs.push({ name: name, per: per, qty: qty, rate: rate, cost: cost });
       });
       if (picked.length) { lines.push('Station ' + (stNo || '-') + ' ' + (from || '?') + '-' + (to || '?') + ' (' + yr + 'yr): ' + picked.join('; ')); }
-      if (stNo || from || to || picked.length) stations.push({ station: stNo, from: from, to: to, years: yr, picked: picked });
+      if (stNo || from || to || picked.length) stations.push({ station: stNo, from: from, to: to, years: yr, picked: picked, params: paramObjs });
     });
     var disc = currentDiscount(), discAmt = Math.round(subtotal * disc / 100), grand = subtotal - discAmt;
     document.getElementById('subTotal').textContent = fmt(subtotal);
@@ -261,6 +268,14 @@ var OFFICE_PHONE = "01-4219052 / 01-4215396";
     if (FORMSPREE_ENDPOINT.indexOf('YOUR_FORM_ID') !== -1) { showError('Set FORMSPREE_ENDPOINT at the top of this file to your Formspree form URL.'); return; }
 
     var ref = genRef();
+    lastSubmission = {
+      reference: ref,
+      date: new Date().toLocaleDateString('en-GB'),
+      organization: val('Organization'), name: val('Name'), email: val('email'),
+      mobile: val('Mobile'), address: val('Address'), purpose: val('Purpose'),
+      category: (document.querySelector('[name="Category"]:checked') || {}).value || '',
+      stations: g.stations, subtotal: g.subtotal, disc: g.disc, discAmt: g.discAmt, grand: g.grand
+    };
     var payload = {
       Reference: ref,
       Name: val('Name'),
@@ -309,6 +324,97 @@ var OFFICE_PHONE = "01-4219052 / 01-4215396";
     document.getElementById('successCard').style.display = 'none';
     document.getElementById('reqForm').style.display = 'block';
   });
+
+  document.getElementById('downloadBtn').addEventListener('click', function () {
+    if (!lastSubmission) return;
+    if (!window.jspdf || !window.jspdf.jsPDF) { alert('PDF library did not load. Please check your internet connection and try again.'); return; }
+    downloadPDF(lastSubmission);
+  });
+
+  function inr(x) { return Number(x || 0).toLocaleString('en-IN'); }
+
+  function downloadPDF(s) {
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    var navy = [15, 61, 92], teal = [27, 127, 140], cx = 297.5;
+    var y = 46;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(27, 127, 140);
+    doc.text('WATER AND ENERGY COMMISSION SECRETARIAT', cx, y, { align: 'center' }); y += 17;
+    doc.setFontSize(14); doc.setTextColor(15, 61, 92);
+    doc.text('Centre of Hydrology & Water Resources Research', cx, y, { align: 'center' }); y += 14;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+    doc.text('Babarmahal, Kathmandu, Nepal', cx, y, { align: 'center' }); y += 18;
+
+    doc.setFillColor(15, 61, 92); doc.rect(40, y, 515, 22, 'F');
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('HYDROLOGICAL DATA REQUEST', cx, y + 15, { align: 'center' }); y += 40;
+
+    doc.setTextColor(60); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Reference: ' + s.reference, 40, y);
+    doc.text('Date: ' + s.date, 555, y, { align: 'right' }); y += 14;
+
+    doc.autoTable({
+      startY: y, theme: 'grid', margin: { left: 40, right: 40 },
+      styles: { fontSize: 9, cellPadding: 4, textColor: [40, 40, 40], lineColor: [212, 220, 224] },
+      columnStyles: { 0: { cellWidth: 150, fontStyle: 'bold', textColor: navy, fillColor: [240, 245, 247] }, 1: { cellWidth: 365 } },
+      body: [
+        ['Organization', s.organization || '—'],
+        ['Name of applicant', s.name || '—'],
+        ['Email', s.email || '—'],
+        ['Mobile', s.mobile || '—'],
+        ['Address', s.address || '—'],
+        ['Applicant category', s.category || '—'],
+        ['Proposed analysis / purpose', s.purpose || '—']
+      ]
+    });
+    y = doc.lastAutoTable.finalY + 18;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(15, 61, 92);
+    doc.text('Data requested', 40, y); y += 6;
+    var dataBody = [];
+    (s.stations || []).forEach(function (st) {
+      (st.params || []).forEach(function (p, i) {
+        dataBody.push([
+          i === 0 ? (st.station || '—') : '',
+          i === 0 ? ((st.from || '?') + '–' + (st.to || '?')) : '',
+          i === 0 ? String(st.years || '') : '',
+          p.name,
+          p.per === 'yr' ? (p.qty + ' yr') : (p.qty + ' meas'),
+          String(p.rate),
+          inr(p.cost)
+        ]);
+      });
+    });
+    if (!dataBody.length) dataBody.push(['—', '', '', 'No parameters', '', '', '0']);
+    doc.autoTable({
+      startY: y, margin: { left: 40, right: 40 }, theme: 'grid',
+      head: [['Station', 'Period', 'Yrs', 'Parameter', 'Qty', 'Rate', 'Cost (NRs.)']],
+      body: dataBody,
+      headStyles: { fillColor: navy, textColor: 255, fontSize: 9 },
+      styles: { fontSize: 8.5, cellPadding: 3, lineColor: [212, 220, 224] },
+      columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } }
+    });
+    y = doc.lastAutoTable.finalY + 12;
+
+    doc.autoTable({
+      startY: y, margin: { left: 350 }, theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: { 0: { cellWidth: 120, fontStyle: 'bold', textColor: navy }, 1: { cellWidth: 85, halign: 'right' } },
+      body: [
+        ['Subtotal (NRs.)', inr(s.subtotal)],
+        ['Discount (' + s.disc + '%)', '– ' + inr(s.discAmt)],
+        ['Grand total (NRs.)', inr(s.grand)]
+      ]
+    });
+    y = doc.lastAutoTable.finalY + 20;
+
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(110);
+    var decl = 'Declaration: The data obtained will be used only for the purpose stated above and will not be reproduced, distributed, or used for any other purpose. The estimated cost shown is indicative; the office confirms the final amount payable.';
+    doc.text(doc.splitTextToSize(decl, 515), 40, y);
+
+    doc.save('data-request-' + s.reference + '.pdf');
+  }
 
   addStation();
 })();
